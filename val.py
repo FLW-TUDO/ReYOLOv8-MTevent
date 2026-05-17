@@ -135,16 +135,20 @@ class EventVideoDetectionValidator(BaseValidator):
             with dt[3]:
                 preds = self.postprocess(preds)
 
-            self.update_metrics(preds, batch_, batch,sequence_mask, T)
+            if not getattr(self.args, 'no_metrics', False):
+                self.update_metrics(preds, batch_, batch,sequence_mask, T)
             if self.args.plots and batch_i < self.args.show_sequences:
                 self.plot_val_samples(batch_, batch,batch_i,T,sequence_mask)
                 self.plot_predictions(batch_, batch,preds, batch_i,T)
 
-            self.run_callbacks('on_val_batch_end') 
+            self.run_callbacks('on_val_batch_end')
 
-        stats = self.get_stats()
-        self.check_stats(stats)
-        self.print_results()
+        if not getattr(self.args, 'no_metrics', False):
+            stats = self.get_stats()
+            self.check_stats(stats)
+            self.print_results()
+        else:
+            stats = {}
         self.speed = tuple(x.t / len(self.dataloader.dataset) * 1E3 for x in dt)  # speeds per image
         self.finalize_metrics()
         self.run_callbacks('on_val_end')
@@ -421,6 +425,7 @@ def val(cfg=DEFAULT_CFG,use_python=False):
     parser.add_argument('--clip_stride', default = 1, type=int)
     parser.add_argument('--show_sequences', default = 3, type=int)
     parser.add_argument('--classes', nargs='+', type=int, default=None, help='filter by class index, e.g. --classes 16 or --classes 0 1 2')
+    parser.add_argument('--no_metrics', action='store_true', help='skip metric computation (useful for zero-shot / nc mismatch)')
     
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt

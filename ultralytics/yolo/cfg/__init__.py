@@ -22,12 +22,12 @@ CLI_HELP_MSG = \
     Community: https://community.ultralytics.com
     GitHub: https://github.com/ultralytics/ultralytics
     """
-CFG_FLOAT_KEYS = {'warmup_epochs', 'box', 'cls', 'dfl', 'max_zoom_out_factor', 'min_zoom_out_factor'}
-CFG_FRACTION_KEYS = {'iou', 'lr0', 'lrf', 'momentum', 'weight_decay', 'warmup_momentum', 'warmup_bias_lr', 'fl_gamma', 'conf', 'iou', 'zoom_out', 'invert',
+CFG_FLOAT_KEYS = {'warmup_epochs', 'box', 'cls', 'dfl', 'max_zoom_out_factor', 'min_zoom_out_factor', 'fl_gamma'}
+CFG_FRACTION_KEYS = {'iou', 'lr0', 'lrf', 'momentum', 'weight_decay', 'warmup_momentum', 'warmup_bias_lr', 'conf', 'iou', 'zoom_out', 'invert',
 'positive', 'suppress', 'flip', 'invert' }
 CFG_INT_KEYS = {'batchs_init', 'val_epoch', 'channels', 'clip_length', 'clip_stride',
     'epochs', 'patience', 'batch', 'workers', 'seed','max_det',
-    'line_thickness', 'workspace', 'nbs', 'save_period', 'val_epoch', 'channels'}
+    'line_thickness', 'workspace', 'nbs', 'save_period', 'val_epoch', 'channels', 'freeze'}
 CFG_BOOL_KEYS = {
     'save', 'exist_ok', 'pretrained', 'verbose', 'deterministic','val', 'half', 'dnn', 'plots', 'show', 'save_txt', 'save_conf',
     'save_crop', 'hide_labels', 'hide_conf', 'visualize', 'augment', 'boxes', 

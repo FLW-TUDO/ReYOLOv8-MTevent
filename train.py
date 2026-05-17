@@ -88,7 +88,7 @@ def parse_opt(known=False):
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
     # Video Hyperparameters
     parser.add_argument('--clip_length', type=int, default=11)
-    parser.add_argument('--clip_stride', type=int, default=11)
+    parser.add_argument('--clip_stride', type=int, default=5)
     parser.add_argument('--channels',  type=int, default=1)  
     parser.add_argument('--val_epoch',  type=int, default=1)  
     # Augmentation Hyperparameters

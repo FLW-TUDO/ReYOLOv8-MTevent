@@ -8,14 +8,14 @@
 
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
-path: /home/silvada/Desktop/reyolov8/datasets/vtei_gen1_50ms_5bin/images # dataset root dir
-train: /home/silvada/Desktop/reyolov8/datasets/vtei_gen1_50ms_5bin/images/train  # train images (relative to 'path') 128 images
-val: /home/silvada/Desktop/reyolov8/datasets/vtei_gen1_50ms_5bin/images/val  # val images (relative to 'path') 128 images
-test: /home/silvada/Desktop/reyolov8/datasets/vtei_gen1_50ms_5bin/images/test # test images (optional)
+path: /home/loki/event/ReYOLOv8/preprocessed_datasets/vtei_gen1_50ms_5bin/images # dataset root dir
+train: /home/loki/event/ReYOLOv8/preprocessed_datasets/vtei_gen1_50ms_5bin/images/train  # train images (relative to 'path') 128 images
+val: /home/loki/event/ReYOLOv8/preprocessed_datasets/vtei_gen1_50ms_5bin/images/val  # val images (relative to 'path') 128 images
+test: /home/loki/event/ReYOLOv8/preprocessed_datasets/vtei_gen1_50ms_5bin/images/test # test images (optional)
 
 # Classes
-nc: 2  # number of classes
-names: ['car','pedestrian']  # class names
+nc: 1  # number of classes
+names: ['human']  # class names
 
 
 # Download script/URL (optional)

@@ -16,3 +16,10 @@ weights/
 # Datasets / generated data (keep out of git)
 mtevent/
 preprocessed_datasets/
+
+# Misc
+*.bak
+logs/
+optuna_reyolov8.db
+.Trash-1000/
+docs/

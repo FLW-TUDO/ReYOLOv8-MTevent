@@ -1,0 +1,103 @@
+# Ultralytics YOLO 🚀, GPL-3.0 license
+# Non-recurrent YOLOv8s baseline config — ablation vs ReYOLOv8s V3
+# Same hyperparameters as default_gen1.yaml for fair comparison.
+# Key difference: clip_length=1 (no temporal sequence), no LSTM.
+
+task: detect
+mode: train
+
+# Train settings
+model:
+data:
+epochs: 100
+patience: 50
+batch: 16
+save: True
+save_period: -1
+cache: False
+device:
+workers: 8
+project:
+name:
+exist_ok: False
+pretrained: False
+optimizer: AdamW
+verbose: True
+seed: 0
+deterministic: True
+min_memory: False
+
+# Val/Test settings
+val: True
+split: val
+save_json: False
+save_hybrid: False
+conf:
+iou: 0.7
+max_det: 300
+half: False
+dnn: False
+plots: True
+
+# Prediction settings
+source:
+show: False
+save_txt: False
+save_conf: False
+save_crop: False
+hide_labels: False
+hide_conf: False
+line_thickness: 3
+visualize: False
+classes:
+boxes: True
+
+# Export settings
+format: torchscript
+keras: False
+optimize: False
+int8: False
+dynamic: False
+simplify: False
+opset:
+workspace: 4
+nms: False
+
+# Hyperparameters — same as V3 for fair comparison
+lr0: 0.00181
+lrf: 0.065
+momentum: 0.886
+weight_decay: 0.000428
+warmup_epochs: 4
+warmup_momentum: 0.871
+warmup_bias_lr: 0.048
+box: 10.87
+cls: 3.31
+dfl: 1.24
+fl_gamma: 1.5
+nbs: 64
+invert: 0.0
+suppress: 0.0
+flip: 0.0
+positive: 0.0
+zoom_out: 0.0
+max_zoom_out_factor: 1.2
+min_zoom_out_factor: 1.0
+
+############ Video Settings
+clip_length: 1   # single frame — non-recurrent model sees no temporal context
+clip_stride: 1   # irrelevant with clip_length=1, kept for API compatibility
+channels: 5      # VTEI 5-bin event representation
+
+#### Other settings
+rect: True
+cos_lr: True
+imgsz: 320
+val_epoch: 1
+resume: False
+freeze: 0
+
+speed: False
+zero_hidden: False  # no LSTM, irrelevant
+
+cfg:

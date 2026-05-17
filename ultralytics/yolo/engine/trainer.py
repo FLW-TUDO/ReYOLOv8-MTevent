@@ -249,9 +249,14 @@ class BaseTrainer:
     def _do_train(self, rank=-1, world_size=1):
         if world_size > 1:
             self._setup_ddp(rank, world_size)
-        wandb.init(project = self.args.project, name = self.args.name, config=
-        self.overrides)
-        
+        import os
+        if os.environ.get('WANDB_MODE', '').lower() != 'disabled':
+            try:
+                wandb.init(project=self.args.project, name=self.args.name, config=self.overrides)
+            except Exception as _wandb_e:
+                import logging; logging.getLogger('ultralytics').warning(f'wandb init failed: {_wandb_e}')
+                os.environ['WANDB_MODE'] = 'disabled'
+
         self._setup_train(rank, world_size)
 
         self.epoch_time = None
@@ -512,7 +517,12 @@ class BaseTrainer:
 
     def save_metrics(self, metrics):
         keys, vals = list(metrics.keys()), list(metrics.values())
-        wandb.log(metrics)
+        import os
+        if os.environ.get('WANDB_MODE', '').lower() != 'disabled':
+            try:
+                wandb.log(metrics)
+            except Exception:
+                pass
         n = len(metrics) + 1  # number of cols
         s = '' if self.csv.exists() else (('%23s,' * n % tuple(['epoch'] + keys)).rstrip(',') + '\n')  # header
         with open(self.csv, 'a') as f:
