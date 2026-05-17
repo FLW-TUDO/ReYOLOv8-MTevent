@@ -95,7 +95,7 @@ python scripts/zeroshot_human_eval.py \
 ```bibtex
 @article{manohar2026mtevent,
   title   = {Benchmarking Recurrent Event-Based Object Detection for
-             Industrial Multi-Class Recognition on {MTEvent}},
+             Industrial Multi-Class Recognition on MTEvent},
   author  = {Manohar, Lokeshwaran and Roidl, Moritz},
   journal = {arXiv preprint arXiv:2603.21787},
   year    = {2026}
