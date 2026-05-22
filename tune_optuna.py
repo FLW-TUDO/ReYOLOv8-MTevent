@@ -17,12 +17,16 @@ database (optuna_reyolov8.db) so the study survives restarts.
 
 import argparse
 import copy
+import gc
 import sys
 import os
 from pathlib import Path
 import yaml
 import optuna
 from optuna.samplers import TPESampler
+
+# Disable wandb for tuning — Optuna's own DB handles results
+os.environ.setdefault('WANDB_MODE', 'disabled')
 
 # ── project root on sys.path ──────────────────────────────────────────────────
 FILE = Path(__file__).resolve()
@@ -37,7 +41,7 @@ from train import EventVideoYOLOv8DetectionTrainer  # noqa: E402
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--weights', type=str, default='reyolov8s_gen1_rps.pt')
+    p.add_argument('--weights', type=str, default='weights/gen1/reyolov8s_gen1_rps.pt')
     p.add_argument('--data',    type=str, default='vtei_mtevent_50ms.yaml')
     p.add_argument('--hyp',     type=str, default='default_gen1.yaml',
                    help='Base hyperparameter YAML (relative to project root)')
@@ -45,7 +49,7 @@ def parse_args():
     p.add_argument('--epochs',  type=int, default=30,
                    help='Epochs per trial (short for fast search)')
     p.add_argument('--batch',   type=int, default=4)
-    p.add_argument('--workers', type=int, default=4)
+    p.add_argument('--workers', type=int, default=8)
     p.add_argument('--n_trials', type=int, default=30)
     p.add_argument('--study_name', type=str, default='reyolov8_mtevent')
     p.add_argument('--storage',   type=str, default='sqlite:///optuna_reyolov8.db',
@@ -84,10 +88,11 @@ def build_overrides(args, trial: optuna.Trial, base: dict, trial_idx: int) -> di
     ov['patience']    = args.patience
     ov['val_epoch']   = args.val_epoch
     ov['clip_length'] = args.clip_length
-    ov['clip_stride'] = 5        # kept fixed; can be added to search space
+    ov['clip_stride'] = 11       # non-overlapping for faster trials (~2x speedup)
     ov['channels']    = args.channels
     ov['imgsz']       = args.imgsz
     ov['plots']       = False    # skip plots to save time
+    ov['freeze']      = 0        # no freezing during hyperparameter search
     ov['save']        = True
     ov['save_period'] = -1
     ov['rect']        = True
@@ -136,17 +141,23 @@ def build_overrides(args, trial: optuna.Trial, base: dict, trial_idx: int) -> di
 def make_objective(args, base_overrides):
     def objective(trial: optuna.Trial) -> float:
         ov = build_overrides(args, trial, base_overrides, trial.number)
+        import torch
+        import wandb
+        trainer = None
+        best = 0.0
         try:
             trainer = EventVideoYOLOv8DetectionTrainer(overrides=ov)
             trainer.train()
-            # best_fitness is tracked by EarlyStopping (0.1*mAP50 + 0.9*mAP50-95)
             best = trainer.stopper.best_fitness
         except Exception as e:
             print(f'[Trial {trial.number}] FAILED: {e}')
-            return 0.0
+            import traceback; traceback.print_exc()
         finally:
-            # free GPU memory between trials
-            import torch
+            # clean up to free GPU memory between trials
+            try: wandb.finish(quiet=True)
+            except Exception: pass
+            del trainer
+            gc.collect()
             torch.cuda.empty_cache()
 
         print(f'[Trial {trial.number}] best_fitness={best:.4f}')
