@@ -1,0 +1,24 @@
+path: /tmp/rgb_yolo_test
+train: /tmp/rgb_yolo_test/images/train
+val:   /tmp/rgb_yolo_test/images/val
+test:  /tmp/rgb_yolo_test/images/test
+
+nc: 17
+names:
+  - wooden_pallet
+  - small_klt
+  - big_klt
+  - blue_klt
+  - amazon_luggage
+  - ikea_dammang_bin
+  - ikea_vesken_trolley
+  - ikea_sortera_bin
+  - ikea_drona_grey
+  - ikea_drona_blue
+  - ikea_knallig_box
+  - ikea_moppe_drawer
+  - ikea_labbsal_basket
+  - ikea_ivar_box
+  - ikea_skubb_case
+  - ikea_samla_box
+  - human

@@ -299,7 +299,11 @@ def write_h5(path, data, key="1mp"):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scenes", nargs="+", required=True, help="scene dirs, e.g. /home/loki/datasets/MTevent/scene75 ...")
+    ap.add_argument("--scenes", nargs="+", default=None, help="scene dirs, e.g. /home/loki/datasets/MTevent/scene75 ...")
+    ap.add_argument("--bag_paths", nargs="+", default=None,
+                    help="direct paths to .bag files (inference-only alternative to --scenes)")
+    ap.add_argument("--infer_only", action="store_true",
+                    help="skip annotation loading; write H5 only (no .npy labels). Required when using --bag_paths.")
     ap.add_argument("--out_root", required=True, help="e.g. preprocessed_datasets/vtei_mtevent_50ms_5bin")
     ap.add_argument("--split", required=True, choices=["train","val","test"])
     ap.add_argument("--dt_ms", type=float, default=50.0)
@@ -313,8 +317,14 @@ def main():
     ap.add_argument("--outW", type=int, default=304, help="output width (GEN1=304)")
     ap.add_argument("--outH", type=int, default=240, help="output height (GEN1=240)")
     ap.add_argument("--label_max_dt_ms", type=float, default=None,
-                    help="optional: if nearest label farther than this, treat as no label")
+                    help="optional: if nearest label farther than this (ms), treat as no label")
     args = ap.parse_args()
+
+    if args.scenes is None and args.bag_paths is None:
+        ap.error("provide --scenes or --bag_paths")
+
+    if args.bag_paths is not None:
+        args.infer_only = True  # --bag_paths implies inference mode
 
     out_img_dir = os.path.join(args.out_root, "images", args.split)
     out_lbl_dir = os.path.join(args.out_root, "labels", args.split)
@@ -325,14 +335,30 @@ def main():
     # IMPORTANT: label file order defines H5 indexing. We will write labels named scene###.npy
     # and concatenate frames in the same sorted order of those names.
     scene_pairs = []
-    for sd in args.scenes:
-        # Extract a stable numeric scene id if present
-        base = os.path.basename(sd.rstrip("/"))
-        scene_pairs.append((base, sd))
-    scene_pairs.sort(key=lambda x: int(re.search(r'(\d+)', x[0]).group(1)))  # numeric sort matches zero-padded .npy glob order
+    if args.bag_paths:
+        # Inference mode: each arg is a direct path to a .bag file
+        for bp in args.bag_paths:
+            base = os.path.splitext(os.path.basename(bp))[0]
+            scene_pairs.append((base, bp, True))  # (name, bag_path, is_direct)
+    else:
+        for sd in args.scenes:
+            base = os.path.basename(sd.rstrip("/"))
+            scene_pairs.append((base, sd, False))
 
-    for base, scene_dir in scene_pairs:
-        bag_path = os.path.join(scene_dir, args.bag_name)
+    def sort_key(x):
+        m = re.search(r'(\d+)', x[0])
+        return int(m.group(1)) if m else 0
+
+    scene_pairs.sort(key=sort_key)
+
+    for entry in scene_pairs:
+        base, path_arg, is_direct = entry
+
+        if is_direct:
+            bag_path = path_arg
+        else:
+            bag_path = os.path.join(path_arg, args.bag_name)
+
         if not os.path.isfile(bag_path):
             print(f"[WARN] skipping {base} because missing bag at {bag_path}")
             continue
@@ -340,52 +366,54 @@ def main():
         # ── Collect ALL annotation JSON files for the chosen camera ──────────
         all_object_labels = []   # list of (class_id, sorted_label_list)
 
-        # 1) MR6D object annotations: {camera}_MR6D{N}_bounding_box_labels_2d.json
-        #    Search in scene dir directly AND in annotation/ subdir (both layouts exist)
-        mr6d_search_dirs = [scene_dir, os.path.join(scene_dir, "annotation")]
-        mr6d_files = []
-        for search_dir in mr6d_search_dirs:
-            mr6d_pattern = os.path.join(search_dir, f"{args.camera}_MR6D*_bounding_box_labels_2d.json")
-            mr6d_files.extend(glob.glob(mr6d_pattern))
-        mr6d_files = sorted(set(mr6d_files))  # deduplicate & sort
-        for jf in mr6d_files:
-            fname = os.path.basename(jf)
-            m_obj = re.search(r"MR6D(\d+)", fname)
-            if m_obj is None:
-                print(f"[WARN]  cannot parse MR6D number from {fname}, skipping")
-                continue
-            mr6d_num = int(m_obj.group(1))
-            cls_id = mr6d_number_to_class_id(mr6d_num)  # N-1
-            if cls_id < 0 or cls_id >= HUMAN_CLASS_ID:
-                print(f"[WARN]  MR6D{mr6d_num} → cls {cls_id} out of range, skipping {fname}")
-                continue
-            labels_list = read_jsonl(jf)
-            if labels_list:
-                all_object_labels.append((cls_id, labels_list))
-                print(f"[INFO]   {base}: loaded {len(labels_list)} bboxes from {fname}  (cls={cls_id} {CLASS_NAMES[cls_id]})")
+        if not args.infer_only:
+            scene_dir = path_arg
+            # 1) MR6D object annotations: {camera}_MR6D{N}_bounding_box_labels_2d.json
+            #    Search in scene dir directly AND in annotation/ subdir (both layouts exist)
+            mr6d_search_dirs = [scene_dir, os.path.join(scene_dir, "annotation")]
+            mr6d_files = []
+            for search_dir in mr6d_search_dirs:
+                mr6d_pattern = os.path.join(search_dir, f"{args.camera}_MR6D*_bounding_box_labels_2d.json")
+                mr6d_files.extend(glob.glob(mr6d_pattern))
+            mr6d_files = sorted(set(mr6d_files))  # deduplicate & sort
+            for jf in mr6d_files:
+                fname = os.path.basename(jf)
+                m_obj = re.search(r"MR6D(\d+)", fname)
+                if m_obj is None:
+                    print(f"[WARN]  cannot parse MR6D number from {fname}, skipping")
+                    continue
+                mr6d_num = int(m_obj.group(1))
+                cls_id = mr6d_number_to_class_id(mr6d_num)  # N-1
+                if cls_id < 0 or cls_id >= HUMAN_CLASS_ID:
+                    print(f"[WARN]  MR6D{mr6d_num} → cls {cls_id} out of range, skipping {fname}")
+                    continue
+                labels_list = read_jsonl(jf)
+                if labels_list:
+                    all_object_labels.append((cls_id, labels_list))
+                    print(f"[INFO]   {base}: loaded {len(labels_list)} bboxes from {fname}  (cls={cls_id} {CLASS_NAMES[cls_id]})")
 
-        # 2) Human annotation: human_{camera}_bounding_box_labels_2d.json
-        #    Search in scene dir directly AND in annotation_human/ subdir
-        human_candidates = [
-            os.path.join(scene_dir, f"human_{args.camera}_bounding_box_labels_2d.json"),
-            os.path.join(scene_dir, "annotation_human", f"human_{args.camera}_bounding_box_labels_2d.json"),
-        ]
-        human_json = None
-        for hc in human_candidates:
-            if os.path.isfile(hc):
-                human_json = hc
-                break
-        if human_json is not None:
-            human_labels = read_jsonl(human_json)
-            if human_labels:
-                all_object_labels.append((HUMAN_CLASS_ID, human_labels))
-                print(f"[INFO]   {base}: loaded {len(human_labels)} bboxes from human annotation  (cls={HUMAN_CLASS_ID} human)")
-        else:
-            print(f"[INFO]   {base}: no human annotation found (searched {human_candidates})")
+            # 2) Human annotation: human_{camera}_bounding_box_labels_2d.json
+            #    Search in scene dir directly AND in annotation_human/ subdir
+            human_candidates = [
+                os.path.join(scene_dir, f"human_{args.camera}_bounding_box_labels_2d.json"),
+                os.path.join(scene_dir, "annotation_human", f"human_{args.camera}_bounding_box_labels_2d.json"),
+            ]
+            human_json = None
+            for hc in human_candidates:
+                if os.path.isfile(hc):
+                    human_json = hc
+                    break
+            if human_json is not None:
+                human_labels = read_jsonl(human_json)
+                if human_labels:
+                    all_object_labels.append((HUMAN_CLASS_ID, human_labels))
+                    print(f"[INFO]   {base}: loaded {len(human_labels)} bboxes from human annotation  (cls={HUMAN_CLASS_ID} human)")
+            else:
+                print(f"[INFO]   {base}: no human annotation found (searched {human_candidates})")
 
-        if not all_object_labels:
-            print(f"[SKIP] {base}: no annotation files found for camera={args.camera}")
-            continue
+            if not all_object_labels:
+                print(f"[SKIP] {base}: no annotation files found for camera={args.camera}")
+                continue
 
         inW, inH = infer_wh_from_bag(bag_path, args.topic, max_msgs=3)
         print(f"[INFO] {base}: inferred input W,H = {inW},{inH}")
@@ -401,18 +429,21 @@ def main():
             label_max_dt_ms=args.label_max_dt_ms,
             split_polarity=args.split_polarity,
         )
-        matched = sum(1 for a in labels_obj if hasattr(a, "shape") and a.shape[0] > 0)
-        if matched == 0:
-            print(f"[SKIP] {base}: no labeled windows (matched=0)")
-            continue
 
-        # Save labels for this scene
-        m = re.search(r"(\d+)", base)
-        sid = int(m.group(1)) if m else 0
-        lbl_path = os.path.join(out_lbl_dir, f"scene_{sid:06d}.npy")
-        np.save(lbl_path, labels_obj, allow_pickle=True)
-        print(f"[OK] wrote {lbl_path}  len={len(labels_obj)}")
+        if not args.infer_only:
+            matched = sum(1 for a in labels_obj if hasattr(a, "shape") and a.shape[0] > 0)
+            if matched == 0:
+                print(f"[SKIP] {base}: no labeled windows (matched=0)")
+                continue
 
+            # Save labels for this scene
+            m = re.search(r"(\d+)", base)
+            sid = int(m.group(1)) if m else 0
+            lbl_path = os.path.join(out_lbl_dir, f"scene_{sid:06d}.npy")
+            np.save(lbl_path, labels_obj, allow_pickle=True)
+            print(f"[OK] wrote {lbl_path}  len={len(labels_obj)}")
+
+        print(f"[INFO] {base}: extracted {len(frames)} frames")
         all_frames.append(frames)
 
     # Concatenate all scenes into one big H5 (the loader opens only the first .h5)
