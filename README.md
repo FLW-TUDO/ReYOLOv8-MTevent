@@ -3,7 +3,7 @@
 Accepted at the [Neuromorphic Field Robotics and Automation Workshop, ICRA 2026](https://nfr-icra2026.com/)  
 Lokeshwaran Manohar, Moritz Roidl — TU Dortmund University
 
-**[PAPER](https://arxiv.org/abs/2603.21787)** | **[POSTER](ICRA2026_poster_revised_compact.pdf)**
+**[PAPER](https://arxiv.org/abs/2603.21787)** | **[POSTER](ICRA2026_poster_v2.pdf)**
 
 Built on [ReYOLOv8](https://github.com/silvada95/ReYOLOv8).
 
